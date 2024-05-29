@@ -1,7 +1,6 @@
 import pandas as pd
 from supabase import create_client, Client
-from datetime import datetime
-from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler
 
 SUPABASE_URL = "https://igswakcuoxvtcwkhczne.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnc3dha2N1b3h2dGN3a2hjem5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTU0MzY5MDEsImV4cCI6MjAzMTAxMjkwMX0.K0ztyeqlQ4tv-UPyCqRtJSD77B1-PqVM09_5VWJNGQQ"
@@ -47,3 +46,48 @@ def count_RFM(id_customer: int):
     result_json = filtered.to_json(orient='records')
 
     return result_json
+
+async def churn_helper(id_customer: int):
+    order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
+    order_table = order_table.data
+
+    order_table = pd.DataFrame(order_table)
+    order_table['order_date'] = pd.to_datetime(order_table['order_date'])
+    
+    # 'Num_of_Purchases', 'Years_as_Customer', 'Total_Spend', 'Average_Transaction_Amount'
+    first_purchased_date = order_table.groupby(["customer_id"], as_index=False)['order_date'].min()
+    max_date = pd.Timestamp.now().date()
+    first_purchased_date['years_as_customer'] = (pd.Timestamp(max_date) - first_purchased_date['order_date']).dt.total_seconds() / (365 * 24 * 60 * 60)
+    
+    num_of_purchases = order_table.groupby(['customer_id'], as_index=False)['id'].nunique()
+    num_of_purchases.columns = ['customer_id', 'num_of_purchases']
+    
+    total_spend = order_table.groupby(['customer_id'], as_index=False)['sales'].sum()
+    
+    average_transaction = pd.merge(num_of_purchases, total_spend, on='customer_id')
+    average_transaction['average_sales'] = average_transaction['sales'] / average_transaction['num_of_purchases']
+    average_transaction.columns = ['customer_id', 'num_of_purchases', 'total_spend', 'average_spend']
+    
+    result = pd.merge(first_purchased_date, average_transaction, on='customer_id')
+
+    filtered = result[result['customer_id'] == id_customer]
+    gender = await get_gender(id_customer)
+    filtered.loc[filtered['customer_id'] == id_customer, 'gender'] = gender
+    result_json = filtered.to_json(orient='records')
+    return result_json
+
+async def get_gender(customer_id: int) -> int:
+    gender_int = {
+        "Male": 0,
+        "Female": 1,
+        "Prefer Not to Say": 2,
+    }
+    query = supabase.table("customers").select("gender").eq("id", customer_id).single()
+    response = query.execute()
+
+    data = response.data
+    gender = gender_int.get(data.get("gender"))
+    return gender
+
+
+    
