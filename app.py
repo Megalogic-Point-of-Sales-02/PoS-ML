@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-import pickle
+import pickle, helper, os, json
 from pydantic import BaseModel
 from typing import List
 from sklearn.preprocessing import MinMaxScaler
@@ -19,9 +19,13 @@ def read_root():
 
 @app.on_event("startup")
 def load_model():
-  with open("model_nb.pkl", "rb") as pickler:
-    global model
-    model = pickle.load(pickler)
+    with open("model_nb.pkl", "rb") as pickler:
+        global churn
+        churn = pickle.load(pickler)
+
+    with open("kmeans.pkl", "rb") as pickler:
+        global kmeans
+        kmeans = pickle.load(pickler)
     
 @app.post("/predict")
 def predict_customer_churn(new_customers: List[CustomerChurn]):
@@ -31,5 +35,22 @@ def predict_customer_churn(new_customers: List[CustomerChurn]):
 
     scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(data)
-    results = model.predict(scaled_data).tolist()
+    results = churn.predict(scaled_data).tolist()
     return {"result":results}
+
+@app.get("/cluster")
+def perform(id_cust: int):
+    data = helper.count_RFM(id_cust)
+    data = json.loads(data)
+
+    if (len(data) == 0):
+        return {"segmentation": "-"} 
+    data = data[0]
+    dataset = [[data['days_since_last_purchased'], data['total_transaction'], data['total_spend'], data['average_spend']]]
+
+    cluster = kmeans.predict(dataset).tolist()
+    label = "-"
+    if len(cluster) > 0: 
+        label = helper.cluster_result(cluster[0])
+    
+    return {"segmentation":label}
