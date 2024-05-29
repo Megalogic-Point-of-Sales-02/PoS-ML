@@ -8,12 +8,10 @@ app = FastAPI(title="Customer Churn")
 
 class CustomerChurn(BaseModel):
     gender: float # 0, 1 atau 2
-    annual_income: float
-    total_Spend: float
+    total_spend: float
     years_as_customer: float
     num_of_purchases: float
     average_transaction_amount: float
-    satisfaction_score: float
 
 @app.get("/")
 def read_root():
@@ -21,14 +19,14 @@ def read_root():
 
 @app.on_event("startup")
 def load_model():
-  with open("model_nb_0.8.pkl", "rb") as pickler:
+  with open("model_nb.pkl", "rb") as pickler:
     global model
     model = pickle.load(pickler)
     
 @app.post("/predict")
 def predict_customer_churn(new_customers: List[CustomerChurn]):
-    data = [[customer.annual_income, customer.num_of_purchases, customer.years_as_customer,
-           customer.total_Spend, customer.average_transaction_amount, customer.satisfaction_score, customer.gender]
+    data = [[customer.num_of_purchases, customer.years_as_customer,
+           customer.total_spend, customer.average_transaction_amount, customer.gender]
           for customer in new_customers]
 
     scaler = MinMaxScaler()
