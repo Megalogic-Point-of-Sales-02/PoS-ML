@@ -13,6 +13,12 @@ class CustomerChurn(BaseModel):
     num_of_purchases: float
     average_transaction_amount: float
 
+class CustomerSegment(BaseModel):
+    days_since_last_purchased: float 
+    total_transaction: float
+    total_spend: float
+    average_spend: float
+
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
@@ -54,26 +60,35 @@ async def predict_customer_churn(customers: List[int]):
     data = [[customer.num_of_purchases, customer.years_as_customer,
            customer.total_spend, customer.average_transaction_amount, customer.gender]
           for customer in data_helper]
-
+    
     scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(data)
     results = churn.predict(scaled_data).tolist()
+    results = helper.churn_result(results)
     return {"result": results}
 
 
-@app.get("/cluster")
-def perform(id_cust: int):
-    data = helper.count_RFM(id_cust)
-    data = json.loads(data)
+@app.post("/cluster")
+async def perform(customers: List[int]):
+    data_helper = []
+    for cust_id in  customers:
+        temp = await helper.count_RFM(cust_id)
+        temp = json.loads(temp)
+        temp = temp[0]
 
-    if (len(data) == 0):
-        return {"segmentation": "-"} 
-    data = data[0]
-    dataset = [[data['days_since_last_purchased'], data['total_transaction'], data['total_spend'], data['average_spend']]]
+        customer = CustomerSegment(
+            days_since_last_purchased= temp["days_since_last_purchased"],
+            total_transaction= temp["total_transaction"],
+            total_spend= temp["total_spend"],
+            average_spend= temp["average_spend"],
+        )
+        data_helper.append(customer)
 
-    cluster = kmeans.predict(dataset).tolist()
-    label = "-"
-    if len(cluster) > 0: 
-        label = helper.cluster_result(cluster[0])
+    data = [[customer.days_since_last_purchased, customer.total_transaction,
+           customer.total_spend, customer.average_spend]
+          for customer in data_helper]
+
+    cluster = kmeans.predict(data).tolist()
+    cluster = helper.cluster_result(cluster)
     
-    return {"segmentation":label}
+    return {"segmentation":cluster}

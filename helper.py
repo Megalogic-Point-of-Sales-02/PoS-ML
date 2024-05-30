@@ -1,17 +1,23 @@
 import pandas as pd
 from supabase import create_client, Client
 from sklearn.preprocessing import MinMaxScaler
+from typing import List
+
 
 SUPABASE_URL = "https://igswakcuoxvtcwkhczne.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnc3dha2N1b3h2dGN3a2hjem5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTU0MzY5MDEsImV4cCI6MjAzMTAxMjkwMX0.K0ztyeqlQ4tv-UPyCqRtJSD77B1-PqVM09_5VWJNGQQ"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def cluster_result(angka : int):
+def cluster_result(segments : List[int]):
     hasil = {0:"Diamond", 2:"Gold", 1:"Silver", 3:"Bronze"}
-    return hasil[angka]
+    return [[hasil.get(segment) for segment in segments]]
 
-def count_RFM(id_customer: int):
+def churn_result(churns : List[int]):
+    hasil = {0:"Not Churn", 1:"Churn"}
+    return [[hasil.get(churn) for churn in churns]]
+
+async def count_RFM(id_customer: int):
     order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
     order_table = order_table.data
 
@@ -43,6 +49,7 @@ def count_RFM(id_customer: int):
     merged_data_scaled = pd.DataFrame(merged_data_scaled, columns=result.columns)
 
     filtered = merged_data_scaled[merged_data_scaled['customer_id'] == id_customer]
+
     result_json = filtered.to_json(orient='records')
 
     return result_json
