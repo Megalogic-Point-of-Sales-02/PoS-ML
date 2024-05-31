@@ -3,8 +3,18 @@ import pickle, helper, os, json
 from pydantic import BaseModel
 from typing import List
 from sklearn.preprocessing import MinMaxScaler
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Customer Churn")
+
+# Allow requests from all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://pointofsales-02-at2vbh6rta-as.a.run.app", "216.239.32.53"],  # Adjust this to your needs
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class CustomerChurn(BaseModel):
     gender: float 
