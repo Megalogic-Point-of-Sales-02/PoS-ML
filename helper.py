@@ -96,5 +96,41 @@ async def get_gender(customer_id: int) -> int:
     gender = gender_int.get(data.get("gender"))
     return gender
 
+async def get_stock_total(days: int):
+    order_table = supabase.table('orders').select("order_date, quantity").execute()
+    order_table = order_table.data
+
+    order_table = pd.DataFrame(order_table)
+
+    sales_data = order_table.groupby(['order_date'], as_index=False)['quantity'].sum()
+    sales_data['order_date'] = pd.to_datetime(sales_data['order_date'],format = '%Y-%m-%d')
+
+    normalize = MinMaxScaler()
+    sales_data['quantity'] = normalize.fit_transform(sales_data[['quantity']])
+
+    today = pd.Timestamp('today')
+
+    last_date = None
+    if(days == 0):
+        last_date = today - pd.Timedelta(days=30) 
+    elif(days == 1):
+        last_date = today - pd.Timedelta(days=90) 
+    elif(days == 2):
+        last_date = today - pd.Timedelta(days=180) 
+    elif(days == 3):
+        last_date = today - pd.Timedelta(days=365)
+    else:
+        last_date = today - pd.Timedelta(days=7) 
+
+    start_date = pd.to_datetime('2024-05-20')
+    end_date = pd.to_datetime('2024-05-22')
+
+    filtered_df = sales_data[(sales_data['order_date'] >= start_date) & (sales_data['order_date'] <= end_date)]
+
+    filtered_df = filtered_df.sort_values(by='order_date')
+
+    result_json = filtered_df.to_json(orient='records')
+
+    return result_json, normalize
 
     
