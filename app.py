@@ -111,11 +111,9 @@ async def perform(customers: List[int]):
 @app.post("/sales_forecast")
 async def sales_forecast(days: int):
     model = tf.keras.models.load_model("sales_forecast.keras", compile=False)
-    data_json, normalize = await helper.helper_sales_forecast(days)
-    data_json = json.loads(data_json)
+    data, normalize = await helper.helper_sales_forecast(days)
     
-    temp = [[item["sales"]] for item in data_json]
-    forecast_sales = np.array(temp, dtype = "float").reshape(len(data_json), 1)
+    forecast_sales = np.reshape(data, (data.shape[0], data.shape[1], 1 ))
     result = model.predict(forecast_sales).ravel()
     
     predictions = normalize.inverse_transform(result.reshape(-1, 1)).ravel().tolist()

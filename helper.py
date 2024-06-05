@@ -2,6 +2,7 @@ import pandas as pd
 from supabase import create_client, Client
 from sklearn.preprocessing import MinMaxScaler
 from typing import List
+import numpy as np
 
 
 SUPABASE_URL = "https://igswakcuoxvtcwkhczne.supabase.co"
@@ -104,31 +105,38 @@ async def helper_sales_forecast(days: int):
     order_table['order_date'] = pd.to_datetime(order_table['order_date'])
     
     total_purchase_by_date = order_table.groupby(['order_date'], as_index=False)['sales'].sum()
-    print (total_purchase_by_date)
+
     
     normalize = MinMaxScaler()
     total_purchase_by_date['sales'] = normalize.fit_transform(total_purchase_by_date[['sales']])
     
     today = pd.Timestamp('today') 
-
-    range = None
-    if (days == 0):
-        range = today - pd.Timedelta(days=30) 
-    elif (days == 1):
-        range = today - pd.Timedelta(days=90) 
-    elif (days == 2):
-        range = today - pd.Timedelta(days=180) 
-    elif (days == 3):
-        range = today - pd.Timedelta(days=365) 
-    else:
-        range = today - pd.Timedelta(days=7) 
+    start = today - pd.Timedelta(days=365) 
+    end = today +  pd.Timedelta(days=365)
    
-    filtered_df = total_purchase_by_date[total_purchase_by_date['order_date'] >= range]
-    filtered_df = filtered_df.sort_values(by='order_date')
-    result_json = filtered_df.to_json(orient='records')
+    filtered_df = total_purchase_by_date[total_purchase_by_date['order_date'].dt.date >= start.date()]
+
     
+    date_range = pd.date_range(start=start.date(), end=end.date())
+    complete_df = pd.DataFrame(index=date_range, columns=['order_date', 'sales'])
+    complete_df['order_date'] = complete_df.index
+    complete_df.set_index('order_date', inplace=True)
+    complete_df.update(filtered_df.set_index('order_date'))
+    complete_df['sales'].fillna(0, inplace=True) #TODO: Fill with median 
     
-    return result_json, normalize
+    complete_df = complete_df.sort_index(ascending=True)
+
+    
+    sales_only = complete_df['sales'].values
+    sales_only = np.array(sales_only.reshape(-1, 1))
+    
+    sales_predict = []
+    
+    for i in range(365, len(sales_only)):
+        sales_predict.append(sales_only[i-365:i, 0])
+    
+    sales_predict = np.array(sales_predict)
+    return sales_predict, normalize
 
 async def get_stock_total(days: int):
     order_table = supabase.table('orders').select("order_date, quantity").execute()
