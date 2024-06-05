@@ -6,8 +6,6 @@ from sklearn.preprocessing import MinMaxScaler
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 import numpy as np
-from tensorflow  import keras
-from keras import losses
 import math
 
 app = FastAPI(title="Customer Churn")
