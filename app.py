@@ -4,6 +4,11 @@ from pydantic import BaseModel
 from typing import List
 from sklearn.preprocessing import MinMaxScaler
 from fastapi.middleware.cors import CORSMiddleware
+import tensorflow as tf
+import numpy as np
+from tensorflow  import keras
+from keras import losses
+import math
 
 app = FastAPI(title="Customer Churn")
 
@@ -102,3 +107,17 @@ async def perform(customers: List[int]):
     cluster = helper.cluster_result(cluster)
     
     return {"segmentation":cluster}
+
+@app.post("/sales_forecast")
+async def sales_forecast(days: int):
+    model = tf.keras.models.load_model("sales_forecast.keras", compile=False)
+    data_json, normalize = await helper.helper_sales_forecast(days)
+    data_json = json.loads(data_json)
+    
+    temp = [[item["sales"]] for item in data_json]
+    forecast_sales = np.array(temp, dtype = "float").reshape(len(data_json), 1)
+    result = model.predict(forecast_sales).ravel()
+    
+    predictions = normalize.inverse_transform(result.reshape(-1, 1)).ravel().tolist()
+
+    return {"result": predictions}

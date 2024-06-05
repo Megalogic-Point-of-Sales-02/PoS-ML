@@ -96,5 +96,34 @@ async def get_gender(customer_id: int) -> int:
     gender = gender_int.get(data.get("gender"))
     return gender
 
+async def helper_sales_forecast(days: int): 
+    order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
+    order_table = order_table.data
 
+    order_table = pd.DataFrame(order_table)
+    order_table['order_date'] = pd.to_datetime(order_table['order_date'])
     
+    total_purchase_by_date = order_table.groupby(['order_date'], as_index=False)['sales'].sum()
+    
+    normalize = MinMaxScaler()
+    total_purchase_by_date['sales'] = normalize.fit_transform(total_purchase_by_date[['sales']])
+    
+    today = pd.Timestamp('today') 
+
+    range = None
+    if (days == 0):
+        range = today - pd.Timedelta(days=30) 
+    elif (days == 1):
+        range = today - pd.Timedelta(days=90) 
+    elif (days == 2):
+        range = today - pd.Timedelta(days=180) 
+    elif (days == 3):
+        range = today - pd.Timedelta(days=365) 
+    else:
+        range = today - pd.Timedelta(days=7) 
+   
+    filtered_df = total_purchase_by_date[total_purchase_by_date['order_date'] >= range]
+    filtered_df = filtered_df.sort_values(by='order_date')
+    result_json = filtered_df.to_json(orient='records')
+    
+    return result_json, normalize
