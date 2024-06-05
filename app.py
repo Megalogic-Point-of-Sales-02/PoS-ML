@@ -120,19 +120,13 @@ async def sales_forecast():
     return {"result": predictions}
     
 @app.post("/stock-sales")
-async def stock_sales(days: int):
-    data, normalize = await helper.get_stock_total(days)
-    data_json = json.loads(data)
-
-    temp = [[item["quantity"]] for item in data_json]
-
-    data_arr = np.array(temp, dtype="float").reshape(len(data_json), 1)
-
+async def stock_sales():
     model = tf.keras.models.load_model("stock_sales_forecast.keras", compile=False)
-    result = model.predict(data_arr)
-
-    predictions = normalize.inverse_transform(result)
-    predictions = [math.ceil(value) for value in predictions.flatten()]
+    data, normalize = await helper.get_stock_total()
     
+    forecast_sales = np.reshape(data, (data.shape[0], data.shape[1], 1 ))
+    result = model.predict(forecast_sales).ravel()
+    
+    predictions = normalize.inverse_transform(result.reshape(-1, 1)).ravel().tolist()
+    predictions = [math.ceil(value) for value in predictions]
     return {"result": predictions}
-
