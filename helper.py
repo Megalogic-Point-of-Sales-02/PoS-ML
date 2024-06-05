@@ -97,7 +97,7 @@ async def get_gender(customer_id: int) -> int:
     gender = gender_int.get(data.get("gender"))
     return gender
 
-async def helper_sales_forecast(days: int): 
+async def helper_sales_forecast(): 
     order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
     order_table = order_table.data
 

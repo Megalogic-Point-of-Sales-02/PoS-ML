@@ -109,9 +109,9 @@ async def perform(customers: List[int]):
     return {"segmentation":cluster}
 
 @app.post("/sales_forecast")
-async def sales_forecast(days: int):
+async def sales_forecast():
     model = tf.keras.models.load_model("sales_forecast.keras", compile=False)
-    data, normalize = await helper.helper_sales_forecast(days)
+    data, normalize = await helper.helper_sales_forecast()
     
     forecast_sales = np.reshape(data, (data.shape[0], data.shape[1], 1 ))
     result = model.predict(forecast_sales).ravel()
