@@ -42,5 +42,6 @@ jobs:
             --platform managed \
             --region asia-southeast1 \
             --allow-unauthenticated \
+            --port 8080 \
             --set-env-vars SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
             --set-env-vars SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \
