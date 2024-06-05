@@ -64,7 +64,6 @@ async def churn_helper(id_customer: int):
     order_table = pd.DataFrame(order_table)
     order_table['order_date'] = pd.to_datetime(order_table['order_date'])
     
-    # 'Num_of_Purchases', 'Years_as_Customer', 'Total_Spend', 'Average_Transaction_Amount'
     first_purchased_date = order_table.groupby(["customer_id"], as_index=False)['order_date'].min()
     max_date = pd.Timestamp.now().date()
     first_purchased_date['years_as_customer'] = (pd.Timestamp(max_date) - first_purchased_date['order_date']).dt.total_seconds() / (365 * 24 * 60 * 60)
