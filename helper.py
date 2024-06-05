@@ -1,10 +1,12 @@
 import os
+from dotenv import load_dotenv
 import pandas as pd
 from supabase import create_client, Client
 from sklearn.preprocessing import MinMaxScaler
 from typing import List
 import numpy as np
 
+load_dotenv() 
 
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
