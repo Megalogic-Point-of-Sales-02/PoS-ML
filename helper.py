@@ -1,13 +1,15 @@
+import os
+from dotenv import load_dotenv
 import pandas as pd
 from supabase import create_client, Client
 from sklearn.preprocessing import MinMaxScaler
 from typing import List
 import numpy as np
 
+load_dotenv() 
 
-SUPABASE_URL = "https://igswakcuoxvtcwkhczne.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnc3dha2N1b3h2dGN3a2hjem5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTU0MzY5MDEsImV4cCI6MjAzMTAxMjkwMX0.K0ztyeqlQ4tv-UPyCqRtJSD77B1-PqVM09_5VWJNGQQ"
-
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def cluster_result(segments : List[int]):
@@ -138,40 +140,41 @@ async def helper_sales_forecast():
     sales_predict = np.array(sales_predict)
     return sales_predict, normalize
 
-async def get_stock_total(days: int):
+async def get_stock_total():
     order_table = supabase.table('orders').select("order_date, quantity").execute()
     order_table = order_table.data
 
     order_table = pd.DataFrame(order_table)
+    order_table['order_date'] = pd.to_datetime(order_table['order_date'])
 
     sales_data = order_table.groupby(['order_date'], as_index=False)['quantity'].sum()
-    sales_data['order_date'] = pd.to_datetime(sales_data['order_date'],format = '%Y-%m-%d')
-
+    
     normalize = MinMaxScaler()
     sales_data['quantity'] = normalize.fit_transform(sales_data[['quantity']])
 
-    today = pd.Timestamp('today')
+    today = pd.Timestamp('today') 
+    start = today - pd.Timedelta(days=365) 
+    end = today +  pd.Timedelta(days=365)
 
-    last_date = None
-    if(days == 0):
-        last_date = today - pd.Timedelta(days=30) 
-    elif(days == 1):
-        last_date = today - pd.Timedelta(days=90) 
-    elif(days == 2):
-        last_date = today - pd.Timedelta(days=180) 
-    elif(days == 3):
-        last_date = today - pd.Timedelta(days=365)
-    else:
-        last_date = today - pd.Timedelta(days=7) 
+    filtered_df = sales_data[sales_data['order_date'].dt.date >= start.date()]
 
-    start_date = pd.to_datetime('2024-05-20')
-    end_date = pd.to_datetime('2024-05-22')
+    date_range = pd.date_range(start=start.date(), end=end.date())
+    complete_df = pd.DataFrame(index=date_range, columns=['order_date', 'quantity'])
+    complete_df['order_date'] = complete_df.index
+    complete_df.set_index('order_date', inplace=True)
+    complete_df.update(filtered_df.set_index('order_date'))
+    complete_df['quantity'].fillna(0, inplace=True)
 
-    filtered_df = sales_data[(sales_data['order_date'] >= start_date) & (sales_data['order_date'] <= end_date)]
-
-    filtered_df = filtered_df.sort_values(by='order_date')
-
-    result_json = filtered_df.to_json(orient='records')
-
+    complete_df = complete_df.sort_index(ascending=True)
     
-    return result_json, normalize
+    qty_only = complete_df['quantity'].values
+    qty_only = np.array(qty_only.reshape(-1, 1))
+    
+    predict = []
+    
+    for i in range(365, len(qty_only)):
+        predict.append(qty_only[i-365:i, 0])
+    
+    predict = np.array(predict)
+    
+    return predict, normalize
