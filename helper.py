@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from supabase import create_client, Client
 from sklearn.preprocessing import MinMaxScaler
@@ -5,9 +6,8 @@ from typing import List
 import numpy as np
 
 
-SUPABASE_URL = "https://igswakcuoxvtcwkhczne.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnc3dha2N1b3h2dGN3a2hjem5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTU0MzY5MDEsImV4cCI6MjAzMTAxMjkwMX0.K0ztyeqlQ4tv-UPyCqRtJSD77B1-PqVM09_5VWJNGQQ"
-
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def cluster_result(segments : List[int]):
