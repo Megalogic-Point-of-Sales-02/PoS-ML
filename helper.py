@@ -1,16 +1,83 @@
 import os
 from dotenv import load_dotenv
 import pandas as pd
-from supabase import create_client, Client
+# from supabase import create_client, Client
 from sklearn.preprocessing import MinMaxScaler
 from typing import List
 import numpy as np
+import mysql.connector
+from mysql.connector import Error
 
 load_dotenv() 
 
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# SUPABASE_URL = os.getenv('SUPABASE_URL')
+# SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+# supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# CREATE CONNECTION AND FUNCTION USING MYSQL SERVER
+
+DB_HOST = os.getenv('DB_HOST')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_NAME = os.getenv('DB_NAME')
+
+def create_connection():
+    """Create a database connection."""
+    connection = None
+    try:
+        connection = mysql.connector.connect(
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME
+        )
+        if connection.is_connected():
+            print("Connected to the MySQL database")
+    except Error as e:
+        print(f"Error: '{e}'")
+    return connection
+
+def get_order_table():
+    connection = create_connection()
+    """Fetch orders from the database."""
+    query = "SELECT order_date, customer_id, id, sales FROM orders"
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    connection.close()
+    df = pd.DataFrame(result)
+
+    return df
+
+def get_order_quantity_table():
+    connection = create_connection()
+    """Fetch orders from the database."""
+    query = "SELECT order_date, quantity FROM orders;"
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    connection.close()
+    df = pd.DataFrame(result)
+
+    return df
+
+def get_gender_table(customer_id):
+    connection = create_connection()
+    """Fetch orders from the database."""
+    query = "SELECT gender FROM customers WHERE id = %s"
+    cursor = connection.cursor(dictionary=True)
+    # Convert customer_id to string
+    customer_id_str = str(customer_id)
+    cursor.execute(query, (customer_id_str,))
+    result = cursor.fetchone()
+    cursor.close()
+    connection.close()
+
+    return result
+
+# MAIN HELPER
 
 def cluster_result(segments : List[int]):
     hasil = {0:"Diamond", 2:"Gold", 1:"Silver", 3:"Bronze"}
@@ -21,10 +88,11 @@ def churn_result(churns : List[int]):
     return [[hasil.get(churn) for churn in churns]]
 
 async def count_RFM(id_customer: int):
-    order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
-    order_table = order_table.data
+    # order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
+    # order_table = order_table.data
 
-    order_table = pd.DataFrame(order_table)
+    # order_table = pd.DataFrame(order_table)
+    order_table = get_order_table()
 
     order_table['order_date'] = pd.to_datetime(order_table['order_date'])
     last_purchased_date = order_table.groupby(["customer_id"], as_index=False)['order_date'].max()
@@ -58,10 +126,12 @@ async def count_RFM(id_customer: int):
     return result_json
 
 async def churn_helper(id_customer: int):
-    order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
-    order_table = order_table.data
+    # order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
+    # order_table = order_table.data
 
-    order_table = pd.DataFrame(order_table)
+    # order_table = pd.DataFrame(order_table)
+
+    order_table = get_order_table()
     order_table['order_date'] = pd.to_datetime(order_table['order_date'])
     
     first_purchased_date = order_table.groupby(["customer_id"], as_index=False)['order_date'].min()
@@ -91,18 +161,21 @@ async def get_gender(customer_id: int) -> int:
         "Female": 1,
         "Prefer Not to Say": 2,
     }
-    query = supabase.table("customers").select("gender").eq("id", customer_id).single()
-    response = query.execute()
-
-    data = response.data
+    # query = supabase.table("customers").select("gender").eq("id", customer_id).single()
+    # response = query.execute()
+    # data = response.data
+    data = get_gender_table(customer_id)
+    
     gender = gender_int.get(data.get("gender"))
     return gender
 
 async def helper_sales_forecast(): 
-    order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
-    order_table = order_table.data
+    # order_table = supabase.table('orders').select("order_date, customer_id, id, sales").execute()
+    # order_table = order_table.data
 
-    order_table = pd.DataFrame(order_table)
+    # order_table = pd.DataFrame(order_table)
+
+    order_table = get_order_table()
     order_table['order_date'] = pd.to_datetime(order_table['order_date'])
     
     total_purchase_by_date = order_table.groupby(['order_date'], as_index=False)['sales'].sum()
@@ -140,10 +213,12 @@ async def helper_sales_forecast():
     return sales_predict, normalize
 
 async def get_stock_total():
-    order_table = supabase.table('orders').select("order_date, quantity").execute()
-    order_table = order_table.data
+    # order_table = supabase.table('orders').select("order_date, quantity").execute()
+    # order_table = order_table.data
 
-    order_table = pd.DataFrame(order_table)
+    # order_table = pd.DataFrame(order_table)
+    order_table = get_order_quantity_table()
+
     order_table['order_date'] = pd.to_datetime(order_table['order_date'])
 
     sales_data = order_table.groupby(['order_date'], as_index=False)['quantity'].sum()

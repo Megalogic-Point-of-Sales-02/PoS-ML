@@ -4,3 +4,5 @@ scikit-learn==1.2.2
 pandas==2.1.2
 supabase==2.5.0
 tensorflow==2.16.1
+python-dotenv==1.0.1
+mysql-connector-python==8.4.0
